@@ -50,14 +50,14 @@ app.get('/api/health', (req, res) => {
 // Calculate DLS and save report
 app.post('/api/calculate-and-save', async (req, res) => {
   try {
-    const { matchMetadata, matchType, team1Innings, team2Innings } = req.body;
+    const { matchType, team1Innings, team2Innings, penaltyRuns, ...metadata } = req.body;
 
-    // Calculate DLS
-    const result = calculateDLS(matchType, team1Innings, team2Innings);
+    // Calculate DLS - pass entire match data as single object
+    const result = calculateDLS(req.body);
 
     // Create report object
     const report = {
-      ...matchMetadata,
+      ...metadata,
       matchType,
       team1OversPlayed: team1Innings.oversPlayed,
       team1Score: team1Innings.finalScore,
