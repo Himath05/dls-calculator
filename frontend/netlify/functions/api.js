@@ -96,6 +96,7 @@ app.post('/api/calculate-and-save', async (req, res) => {
 
     res.json({
       success: true,
+      id: docRef.id,
       reportId: docRef.id,
       report: {
         ...report,
@@ -123,7 +124,7 @@ app.get('/api/reports', async (req, res) => {
       });
     });
 
-    res.json({ reports });
+    res.json({ success: true, reports });
   } catch (error) {
     console.error('Error fetching reports:', error);
     res.status(500).json({ error: error.message });
@@ -142,9 +143,12 @@ app.get('/api/reports/:id', async (req, res) => {
     }
 
     res.json({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate().toISOString()
+      success: true,
+      report: {
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate().toISOString()
+      }
     });
   } catch (error) {
     console.error('Error fetching report:', error);
@@ -188,6 +192,7 @@ app.get('/api/storage', async (req, res) => {
     const percentageUsed = (storageUsedMB / storageLimitMB) * 100;
 
     res.json({
+      success: true,
       storageUsedMB: storageUsedMB.toFixed(2),
       storageLimitMB,
       percentageUsed: percentageUsed.toFixed(1)
