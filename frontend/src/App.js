@@ -1019,7 +1019,7 @@ function App() {
               />
             </div>
             <div className="text-xs text-blue-200 mt-1">
-              {storageInfo.percentageUsed.toFixed(1)}% used
+              {parseFloat(storageInfo.percentageUsed).toFixed(1)}% used
               {storageInfo.percentageUsed > 90 && ' - Please delete old reports to free up space'}
             </div>
           </div>
