@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Custom even shadow for cards */
+.shadow-even {
+  box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.1);
+}
+
+.shadow-even-lg {
+  box-shadow: 0 0 30px 0 rgba(0, 0, 0, 0.12);
+}
+
+.shadow-even-xl {
+  box-shadow: 0 0 40px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Print-specific styles for high-quality PDFs */
+@media print {
+  @page {
+    size: A4;
+    margin: 1.5cm 1cm;
+  }
+  
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  /* Ensure colors and backgrounds print */
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  /* Hide scrollbars in print */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Allow page breaks but avoid breaking inside rows */
+  table {
+    page-break-inside: auto;
+    border-collapse: collapse;
+  }
+  
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  
+  thead {
+    display: table-header-group;
+  }
+  
+  tbody {
+    display: table-row-group;
+  }
+  
+  tfoot {
+    display: table-footer-group;
+  }
+  
+  /* Prevent orphan rows */
+  tr:nth-last-child(-n+3) {
+    page-break-after: avoid;
+  }
+  
+  /* Ensure table fits properly */
+  .print\:text-xs {
+    font-size: 8px !important;
+  }
+  
+  .print\:max-h-none {
+    max-height: none !important;
+  }
+  
+  .print\:overflow-visible {
+    overflow: visible !important;
+  }
+  
+  /* Add custom footer text */
+  .print-footer {
+    display: block !important;
+    position: fixed;
+    bottom: 0.3cm;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 9px;
+    color: #666;
+  }
+  
+  /* Print title */
+  .print-title {
+    display: block !important;
+  }
+}
+
+/* Mobile-first responsive design - optimized for iPhone XR (414x896px) */
+@media (max-width: 640px) {
+  /* Improve touch targets */
+  button, a, input, select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better spacing on mobile */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Prevent zoom on input focus */
+  input, select, textarea {
+    font-size: 16px;
+  }
+  
+  /* Stack elements vertically on mobile */
+  .mobile-stack > * {
+    width: 100% !important;
+  }
+}
