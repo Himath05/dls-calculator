@@ -37,14 +37,14 @@ code {
   }
   
   body {
-    print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   
   /* Ensure colors and backgrounds print */
   * {
-    print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   
   /* Hide scrollbars in print */
@@ -133,5 +133,21 @@ code {
   /* Stack elements vertically on mobile */
   .mobile-stack > * {
     width: 100% !important;
+  }
+}
+
+/* iPad 11" (834x1194) and similar tablets */
+@media (min-width: 768px) and (max-width: 1194px) {
+  .container {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  table {
+    font-size: 11px;
+  }
+
+  h1 {
+    line-height: 1.2;
   }
 }

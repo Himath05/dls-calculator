@@ -18,8 +18,7 @@ function App() {
     venue: '',
     tournamentName: '',
     date: new Date().toISOString().split('T')[0],
-    dlsManagerName: '',
-    g50: 245 // G50 constant for DLS calculations
+    dlsManagerName: ''
   });
 
   const [matchType, setMatchType] = useState('ODI (50)');
@@ -636,19 +635,6 @@ function App() {
                 placeholder="e.g., John Smith"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                G50 Constant
-                <span className="text-xs text-gray-500 ml-2">(Average score for 50 overs)</span>
-              </label>
-              <input
-                type="number"
-                value={matchMetadata.g50 || 245}
-                onChange={(e) => setMatchMetadata(prev => ({ ...prev, g50: parseInt(e.target.value) || 245 }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="245"
-              />
-            </div>
           </div>
         </div>
 
@@ -1111,7 +1097,66 @@ function App() {
   const ReportDetailView = () => {
     if (!currentReport) return null;
 
-    const handlePrint = () => {
+    const handlePrint = async () => {
+      const isMobileOrTablet = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.matchMedia('(max-width: 1024px)').matches;
+
+      if (isMobileOrTablet) {
+        try {
+          const reportContent = document.querySelector('[data-report-content="true"]');
+          if (!reportContent) {
+            throw new Error('Report content not found');
+          }
+
+          const html2canvas = (await import('html2canvas')).default;
+          const { jsPDF } = await import('jspdf');
+
+          const canvas = await html2canvas(reportContent, {
+            scale: 2,
+            logging: false,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            removeContainer: true,
+            imageTimeout: 0,
+            allowTaint: false
+          });
+
+          const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+            compress: true
+          });
+
+          const pageWidth = 210;
+          const pageHeight = 297;
+          const imgWidth = pageWidth;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          const imgData = canvas.toDataURL('image/jpeg', 0.9);
+
+          let renderedHeight = imgHeight;
+          let yOffset = 0;
+
+          pdf.addImage(imgData, 'JPEG', 0, yOffset, imgWidth, imgHeight);
+          renderedHeight -= pageHeight;
+
+          while (renderedHeight > 0) {
+            yOffset = renderedHeight - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, yOffset, imgWidth, imgHeight);
+            renderedHeight -= pageHeight;
+          }
+
+          const matchDate = new Date(currentReport.date).toISOString().split('T')[0];
+          const fileName = `DLS_Report_${currentReport.team1Name}_vs_${currentReport.team2Name}_${matchDate}`.replace(/[^a-z0-9_-]/gi, '_');
+          pdf.save(`${fileName}.pdf`);
+          return;
+        } catch (err) {
+          setError(`Unable to generate PDF on this device: ${err.message}`);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+      }
+
       // Set document title for the PDF filename
       const originalTitle = document.title;
       const matchDate = new Date(currentReport.date).toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -1280,21 +1325,14 @@ function App() {
                 <button
                   onClick={handlePrint}
                   className="bg-blue-500 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold hover:bg-blue-600 transition-colors shadow-md flex items-center justify-center gap-2 text-sm sm:text-base flex-1 sm:flex-initial min-h-[44px]"
-                  title="Save as PDF - Disable 'Headers and footers' in print settings to remove URL"
+                  title="Save as PDF"
                 >
                   🖨️ Save PDF
                 </button>
               </div>
             </div>
-            {/* Print Instructions - Only show on screen */}
-            <div className="mt-2 text-xs text-blue-100 text-center">
-              💡 Tip: In print dialog, turn OFF "Headers and footers" to remove the website URL from PDF
-            </div>
           </div>
         </div>
-
-        {/* Print Footer - hidden on screen, visible in print */}
-        <div className="print-footer hidden">DLS 5.0 Calculator</div>
 
         {/* Print Title - only visible when printing */}
         <div className="print-title hidden print:block text-center mb-4">
@@ -1307,7 +1345,7 @@ function App() {
         </div>
 
         {/* Report Content */}
-        <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-6xl">
+        <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-6xl" data-report-content="true">
           {/* Report Header */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-t-2xl p-4 sm:p-8 print:rounded-none">
             <div className="text-center">
@@ -1357,8 +1395,8 @@ function App() {
                   <div className="text-lg sm:text-2xl font-bold text-gray-800">{currentReport.totalOvers} Overs</div>
                 </div>
                 <div className="bg-white p-3 sm:p-4 rounded-lg text-center">
-                  <div className="text-xs sm:text-sm text-gray-600 mb-1">G50 Constant</div>
-                  <div className="text-lg sm:text-2xl font-bold text-gray-800">245</div>
+                  <div className="text-xs sm:text-sm text-gray-600 mb-1">Par Score Type</div>
+                  <div className="text-lg sm:text-2xl font-bold text-gray-800">Cumulative</div>
                 </div>
               </div>
             </div>
@@ -1434,13 +1472,13 @@ function App() {
           {/* Par Score Tables */}
           <div className="bg-white border-x border-gray-200 p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Over-by-Over Par Scores</h2>
-            <p className="text-sm text-gray-600 mb-4">Par score for a tie at the end of each over, based on wickets down</p>
+            <p className="text-sm text-gray-600 mb-4">Cumulative par score for a tie at each over, grouped by overs bowled, overs remaining, and wickets down.</p>
             <div className="overflow-x-auto print:text-xs">
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-gray-800 text-white">
-                    <th className="border border-gray-300 px-2 py-2">Over</th>
-                    <th className="border border-gray-300 px-2 py-2">Remaining</th>
+                    <th className="border border-gray-300 px-2 py-2">Overs Bowled</th>
+                    <th className="border border-gray-300 px-2 py-2">Overs Remaining</th>
                     <th className="border border-gray-300 px-2 py-2">0</th>
                     <th className="border border-gray-300 px-2 py-2">1</th>
                     <th className="border border-gray-300 px-2 py-2">2</th>
@@ -1467,7 +1505,7 @@ function App() {
                       <tr key={over} className={overNum % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                         <td className="border border-gray-300 px-2 py-2 font-semibold text-center">{over}</td>
                         <td className="border border-gray-300 px-2 py-2 text-center">{remaining}</td>
-                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(wicket => (
+                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(wicket => (
                           <td key={wicket} className="border border-gray-300 px-2 py-2 text-center font-medium">
                             {scores[wicket] !== undefined ? scores[wicket] : '-'}
                           </td>
@@ -1483,7 +1521,7 @@ function App() {
           {/* Ball-by-Ball Par Scores - Scrollable */}
           <div className="bg-white border border-gray-200 p-8 print:break-before-page">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Ball-by-Ball Par Scores</h2>
-            <p className="text-sm text-gray-600 mb-4">Par score for a tie after each ball (ball 0-5 in each over), based on wickets down</p>
+            <p className="text-sm text-gray-600 mb-4">Cumulative par score for a tie after each completed legal ball, based on wickets down.</p>
             <div className="max-h-96 overflow-y-auto print:max-h-none print:overflow-visible">
               <div className="overflow-x-auto print:text-xs">
                 <table className="w-full text-xs border-collapse">
@@ -1500,11 +1538,10 @@ function App() {
                       <th className="border border-gray-300 px-2 py-2">7</th>
                       <th className="border border-gray-300 px-2 py-2">8</th>
                       <th className="border border-gray-300 px-2 py-2">9</th>
-                      <th className="border border-gray-300 px-2 py-2">10</th>
                     </tr>
                     <tr className="bg-gray-100 text-xs text-gray-600">
                       <th className="border border-gray-300 px-2 py-1">Wickets Down →</th>
-                      <th className="border border-gray-300 px-1 py-1" colSpan="11"></th>
+                      <th className="border border-gray-300 px-1 py-1" colSpan="10"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1513,12 +1550,15 @@ function App() {
                       
                       return Object.keys(balls).sort((a, b) => Number(a) - Number(b)).map((ball) => {
                         const scores = balls[ball];
-                        const overBall = `${over}.${ball}`;
+                        const totalBallsBowled = (Number(over) * 6) + Number(ball) + 1;
+                        const displayOver = Math.floor(totalBallsBowled / 6);
+                        const displayBall = totalBallsBowled % 6;
+                        const overBall = `${displayOver}.${displayBall}`;
                         
                         return (
                           <tr key={overBall} className={Number(over) % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                             <td className="border border-gray-300 px-2 py-2 font-semibold text-center">{overBall}</td>
-                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(wicket => (
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(wicket => (
                               <td key={wicket} className="border border-gray-300 px-2 py-2 text-center font-medium">
                                 {scores[wicket] !== undefined ? scores[wicket] : '-'}
                               </td>

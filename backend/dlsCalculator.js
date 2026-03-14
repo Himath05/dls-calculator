@@ -1,4 +1,4 @@
-const { getResource, G50, oversBallsToDecimal } = require('./dlsResourceTable');
+const { getResource, oversBallsToDecimal } = require('./dlsResourceTable');
 
 /**
  * Calculate DLS resources and target for a match
@@ -65,16 +65,7 @@ function calculateDLS(matchData) {
   const team1Score = team1Innings.finalScore;
   let team2Target;
 
-  if (R2_final < R1_final) {
-    // Team 2 has fewer resources
-    team2Target = Math.floor(team1Score * (R2_final / R1_final)) + 1;
-  } else if (R2_final > R1_final) {
-    // Team 2 has more resources
-    team2Target = Math.floor(team1Score + (G50 * (R2_final - R1_final) / 100)) + 1;
-  } else {
-    // Equal resources
-    team2Target = team1Score + 1;
-  }
+  team2Target = Math.floor(team1Score * (R2_final / R1_final)) + 1;
 
   // Apply penalty runs
   team2Target += penaltyRuns;
@@ -116,7 +107,7 @@ function calculateInningsResource(innings, totalOvers) {
   const { oversAtStart = totalOvers, stoppages = [] } = innings;
   
   // Initial resource (at start of innings with 0 wickets down)
-  const initial = getResource(oversAtStart, 0);
+  const initial = getResource(oversAtStart, 0, totalOvers);
   
   let currentResource = initial;
   const resourceHistory = [{ point: 'Start', resource: initial }];
@@ -124,7 +115,7 @@ function calculateInningsResource(innings, totalOvers) {
   // Process each stoppage
   for (let i = 0; i < stoppages.length; i++) {
     const stoppage = stoppages[i];
-    const { oversBowled, runsScoredAtStoppage, wicketsDown, oversLost } = stoppage;
+    const { oversBowled, wicketsDown, oversLost } = stoppage;
     
     // Convert overs.balls to decimal
     const oversBowledDecimal = oversBallsToDecimal(oversBowled);
@@ -134,13 +125,13 @@ function calculateInningsResource(innings, totalOvers) {
     const oversRemainingBefore = oversAtStart - oversBowledDecimal;
     
     // Resource available before stoppage
-    const resourceBefore = getResource(oversRemainingBefore, wicketsDown);
+    const resourceBefore = getResource(oversRemainingBefore, wicketsDown, totalOvers);
     
     // Calculate overs remaining after stoppage
     const oversRemainingAfter = oversRemainingBefore - oversLostDecimal;
     
     // Resource available after stoppage
-    const resourceAfter = getResource(oversRemainingAfter, wicketsDown);
+    const resourceAfter = getResource(oversRemainingAfter, wicketsDown, totalOvers);
     
     // Resource lost in this stoppage
     const resourceLost = resourceBefore - resourceAfter;
@@ -186,18 +177,27 @@ function generateParScoreTable(team1Score, R1_final, totalOvers, ballByBall) {
     for (let over = 0; over <= totalOvers; over++) {
       parScores[over] = {};
       for (let ball = 0; ball < 6; ball++) {
-        const oversRemaining = totalOvers - over - (ball / 6);
+        const completedOvers = over + ((ball + 1) / 6);
+        if (completedOvers > totalOvers) {
+          continue;
+        }
+
+        const oversRemaining = totalOvers - completedOvers;
         
         // We assume different wicket scenarios (0-9 wickets down)
         // For display, we'll show the par score for the "current" situation
         // For simplicity, let's calculate for all wickets and store
         const wicketScores = {};
         for (let wickets = 0; wickets <= 9; wickets++) {
-          const resourceAtThisPoint = getResource(oversRemaining, wickets);
-          const parScore = Math.floor(team1Score * (resourceAtThisPoint / R1_final));
+          const resourceAtThisPoint = getResource(oversRemaining, wickets, totalOvers);
+          const parScore = Math.floor(team1Score * ((R1_final - resourceAtThisPoint) / R1_final));
           wicketScores[wickets] = parScore;
         }
         parScores[over][ball] = wicketScores;
+      }
+
+      if (Object.keys(parScores[over]).length === 0) {
+        delete parScores[over];
       }
     }
   } else {
@@ -208,8 +208,8 @@ function generateParScoreTable(team1Score, R1_final, totalOvers, ballByBall) {
       // Calculate for all wicket scenarios
       const wicketScores = {};
       for (let wickets = 0; wickets <= 9; wickets++) {
-        const resourceAtThisPoint = getResource(oversRemaining, wickets);
-        const parScore = Math.floor(team1Score * (resourceAtThisPoint / R1_final));
+        const resourceAtThisPoint = getResource(oversRemaining, wickets, totalOvers);
+        const parScore = Math.floor(team1Score * ((R1_final - resourceAtThisPoint) / R1_final));
         wicketScores[wickets] = parScore;
       }
       parScores[over] = wicketScores;

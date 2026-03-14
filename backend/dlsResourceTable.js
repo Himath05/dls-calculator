@@ -1,5 +1,5 @@
-// DLS 5.0 Resource Percentage Table
-// Maps (overs_remaining, wickets_lost) to resource_percentage
+// DLS 5.0 Resource Percentage Tables
+// Maps (overs_remaining, wickets_lost) to resource_percentage.
 
 const DLS_RESOURCE_TABLE = {
   50: [100.0, 93.4, 85.1, 74.9, 62.7, 49.5, 36.6, 24.5, 14.2, 5.4],
@@ -55,8 +55,52 @@ const DLS_RESOURCE_TABLE = {
   0: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 };
 
-// G50 constant - average score in a 50-over innings
-const G50 = 245;
+// Official-style T20 cumulative par baseline (score = 115) converted to remaining-resource %.
+// Source basis: DLS 5.0 over-by-over statement table (20-over format).
+const T20_PAR_SCORE_BASE_115 = {
+  20: [0, 5, 11, 19, 28, 41, 57, 76, 95, 109],
+  19: [4, 9, 14, 21, 31, 43, 58, 76, 95, 109],
+  18: [9, 13, 18, 24, 33, 44, 59, 76, 95, 109],
+  17: [13, 17, 21, 27, 35, 46, 60, 77, 95, 109],
+  16: [18, 21, 25, 31, 38, 48, 61, 77, 95, 109],
+  15: [22, 25, 29, 34, 41, 50, 62, 77, 95, 109],
+  14: [27, 30, 33, 38, 44, 52, 63, 78, 95, 109],
+  13: [32, 35, 38, 42, 47, 54, 65, 78, 95, 109],
+  12: [38, 40, 42, 46, 51, 57, 66, 79, 95, 109],
+  11: [43, 45, 47, 50, 54, 60, 68, 80, 95, 109],
+  10: [49, 50, 52, 55, 58, 63, 70, 81, 95, 109],
+  9: [54, 55, 57, 59, 62, 66, 73, 82, 95, 109],
+  8: [60, 61, 62, 64, 67, 70, 75, 83, 96, 109],
+  7: [66, 67, 68, 70, 71, 74, 79, 85, 96, 109],
+  6: [73, 73, 74, 75, 77, 79, 82, 88, 97, 109],
+  5: [79, 80, 80, 81, 82, 84, 86, 90, 98, 109],
+  4: [86, 86, 87, 87, 88, 89, 90, 93, 99, 109],
+  3: [93, 93, 93, 93, 94, 95, 96, 97, 101, 110],
+  2: [100, 100, 100, 100, 100, 101, 101, 102, 104, 110],
+  1: [107, 107, 107, 107, 107, 108, 108, 108, 109, 111],
+  0: [115, 115, 115, 115, 115, 115, 115, 115, 115, 115]
+};
+
+const T20_RESOURCE_TABLE = Object.fromEntries(
+  Object.entries(T20_PAR_SCORE_BASE_115).map(([oversRemaining, parScores]) => {
+    const remainingResources = parScores.map((par) => ((115 - par) / 115) * 100);
+    return [Number(oversRemaining), remainingResources];
+  })
+);
+
+function getTableByMatchLength(totalOvers) {
+  if (totalOvers === 20) {
+    return {
+      table: T20_RESOURCE_TABLE,
+      maxOvers: 20
+    };
+  }
+
+  return {
+    table: DLS_RESOURCE_TABLE,
+    maxOvers: 50
+  };
+}
 
 /**
  * Get resource percentage for given overs remaining and wickets lost
@@ -64,14 +108,16 @@ const G50 = 245;
  * @param {number} wickets - Wickets lost (0-9)
  * @returns {number} Resource percentage
  */
-function getResource(overs, wickets) {
+function getResource(overs, wickets, totalOvers = 50) {
+  const { table, maxOvers } = getTableByMatchLength(totalOvers);
+
   // Ensure wickets is within valid range
   if (wickets < 0) wickets = 0;
   if (wickets > 9) wickets = 9;
   
   // Handle edge cases
-  if (overs <= 0) return DLS_RESOURCE_TABLE[0][wickets];
-  if (overs >= 50) return DLS_RESOURCE_TABLE[50][wickets];
+  if (overs <= 0) return table[0][wickets];
+  if (overs >= maxOvers) return table[maxOvers][wickets];
   
   // Get the floor and ceiling over values
   const oversFloor = Math.floor(overs);
@@ -79,12 +125,12 @@ function getResource(overs, wickets) {
   
   // If overs is a whole number, return directly from table
   if (oversFloor === oversCeil) {
-    return DLS_RESOURCE_TABLE[oversFloor][wickets];
+    return table[oversFloor][wickets];
   }
   
   // Linear interpolation between two overs values
-  const resourceFloor = DLS_RESOURCE_TABLE[oversFloor][wickets];
-  const resourceCeil = DLS_RESOURCE_TABLE[oversCeil][wickets];
+  const resourceFloor = table[oversFloor][wickets];
+  const resourceCeil = table[oversCeil][wickets];
   const fraction = overs - oversFloor;
   
   return resourceFloor + (resourceCeil - resourceFloor) * fraction;
@@ -124,7 +170,7 @@ function decimalToOversBalls(decimalOvers) {
 
 module.exports = {
   DLS_RESOURCE_TABLE,
-  G50,
+  T20_RESOURCE_TABLE,
   getResource,
   oversBallsToDecimal,
   decimalToOversBalls
